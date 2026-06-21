@@ -23,14 +23,31 @@ def _fmt(v: float) -> str:
     return str(int(v)) if v == int(v) else repr(v)
 
 
+def _argref(a) -> str:
+    return f"p.{a.name}" if a.name is not None else _fmt(a.value)
+
+
 def _flux(r: Reaction) -> str:
-    parts = [f"p.{r.rate_param}"]
-    for ref in r.reactants:
-        if ref.coeff == 1.0:
-            parts.append(f"x {ref.species}")
-        else:
-            parts.append(f"x {ref.species} ^ {_fmt(ref.coeff)}")
-    return " * ".join(parts)
+    if r.rate_law == "mass_action":
+        parts = [_argref(r.rate_args[0])]
+        for ref in r.reactants:
+            if ref.coeff == 1.0:
+                parts.append(f"x {ref.species}")
+            else:
+                parts.append(f"x {ref.species} ^ {_fmt(ref.coeff)}")
+        return " * ".join(parts)
+    if r.rate_law == "michaelis_menten":
+        vmax = _argref(r.rate_args[0])
+        km = _argref(r.rate_args[1])
+        s = r.reactants[0].species
+        return f"{vmax} * x {s} / ({km} + x {s})"
+    if r.rate_law == "hill":
+        vmax = _argref(r.rate_args[0])
+        km = _argref(r.rate_args[1])
+        n = _argref(r.rate_args[2])
+        s = r.reactants[0].species
+        return f"{vmax} * x {s} ^ {n} / ({km} ^ {n} + x {s} ^ {n})"
+    return "0"
 
 
 def _net(r: Reaction, species: str) -> float:

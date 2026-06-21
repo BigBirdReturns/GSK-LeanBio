@@ -77,13 +77,39 @@ class SpeciesRef:
 
 
 @dataclass
+class RateArg:
+    """One argument to a rate law: either a parameter reference or a literal.
+
+    Hill exponents are typically literals (`@hill(vmax, km, 2)`); rate
+    constants are parameter references (`@mass_action(kf)`).
+    """
+
+    name: str | None       # parameter reference, if a NAME
+    value: float | None    # literal constant, if a NUMBER
+    span: Span
+
+
+# Rate laws and their argument arity (min, max).
+RATE_LAW_ARITY = {
+    "mass_action": (1, 1),
+    "michaelis_menten": (2, 2),   # (vmax, km), substrate = sole reactant
+    "hill": (3, 3),               # (vmax, km, n), substrate = sole reactant
+}
+KNOWN_RATE_LAWS = set(RATE_LAW_ARITY)
+SINGLE_SUBSTRATE_LAWS = {"michaelis_menten", "hill"}
+
+
+@dataclass
 class Reaction:
     name: str
     reactants: list[SpeciesRef]
     products: list[SpeciesRef]
-    rate_law: str          # currently always "mass_action"
-    rate_param: str        # name of the rate constant, e.g. "kf"
+    rate_law: str
+    rate_args: list[RateArg]
     span: Span
+
+    def rate_param_names(self) -> list[str]:
+        return [a.name for a in self.rate_args if a.name is not None]
 
 
 # Confidence grades, mirroring the report's grading system.

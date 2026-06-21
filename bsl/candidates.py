@@ -136,10 +136,17 @@ def candidates(model: Model) -> Iterator[dict[str, Any]]:
             model, label, "has_rate_law", r.rate_law,
             "literal:string", r.span, tier=0, confidence=1.0,
         )
-        yield _claim(
-            model, label, "has_rate_parameter", f"param:{r.rate_param}",
-            "entity", r.span, tier=0, confidence=1.0,
-        )
+        for arg in r.rate_args:
+            if arg.name is not None:
+                yield _claim(
+                    model, label, "has_rate_parameter", f"param:{arg.name}",
+                    "entity", arg.span, tier=0, confidence=1.0,
+                )
+            else:
+                yield _claim(
+                    model, label, "has_kinetic_constant", repr(arg.value),
+                    "literal:decimal", arg.span, tier=0, confidence=1.0,
+                )
 
     # Invariants -> entity + conservation claim + per-species links.
     for inv in model.invariants:

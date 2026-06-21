@@ -29,7 +29,7 @@ def test_reaction_stoichiometry():
     assert {ref.species for ref in binding.reactants} == {"E", "S"}
     assert [ref.species for ref in binding.products] == ["ES"]
     assert binding.rate_law == "mass_action"
-    assert binding.rate_param == "kf"
+    assert binding.rate_param_names() == ["kf"]
 
 
 def test_param_grades():

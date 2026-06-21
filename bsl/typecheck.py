@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .nodes import Model, Span
+from .nodes import Model, Span, SINGLE_SUBSTRATE_LAWS
 
 
 @dataclass
@@ -61,11 +61,19 @@ def check(model: Model) -> list[Diagnostic]:
                     f"reaction {r.name!r} has non-positive stoichiometric "
                     f"coefficient {ref.coeff} on {ref.species!r}", ref.span,
                 ))
-        if r.rate_param not in params:
+        for pname in r.rate_param_names():
+            if pname not in params:
+                diags.append(Diagnostic(
+                    "error", "E_UNDECLARED_PARAM",
+                    f"reaction {r.name!r} uses undeclared rate parameter "
+                    f"{pname!r}", r.span,
+                ))
+        if r.rate_law in SINGLE_SUBSTRATE_LAWS and len(r.reactants) != 1:
             diags.append(Diagnostic(
-                "error", "E_UNDECLARED_PARAM",
-                f"reaction {r.name!r} uses undeclared rate parameter "
-                f"{r.rate_param!r}", r.span,
+                "error", "E_KINETICS_SUBSTRATE",
+                f"reaction {r.name!r} uses {r.rate_law} kinetics, which require "
+                f"exactly one substrate (reactant), found {len(r.reactants)}",
+                r.span,
             ))
 
     # --- parameter intervals: lo <= hi, rate constants non-negative ---------
@@ -94,7 +102,9 @@ def check(model: Model) -> list[Diagnostic]:
                 ))
 
     # --- unused parameters (warning) ----------------------------------------
-    used = {r.rate_param for r in model.reactions}
+    used: set[str] = set()
+    for r in model.reactions:
+        used.update(r.rate_param_names())
     for p in model.params:
         if p.name not in used:
             diags.append(Diagnostic(

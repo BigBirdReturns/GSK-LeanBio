@@ -28,6 +28,9 @@ from .nodes import (
     Param,
     Invariant,
     Source,
+    RateArg,
+    KNOWN_RATE_LAWS,
+    RATE_LAW_ARITY,
     GRADE_EXPERIMENT,
     GRADE_LITERATURE,
     GRADE_ASSUMED,
@@ -160,22 +163,48 @@ class _Parser:
         products, _ = self.parse_side()
         self.expect("@")
         law = self.expect("NAME")
-        if law.value != "mass_action":
+        if law.value not in KNOWN_RATE_LAWS:
             raise BSLError(
-                f"unknown rate law {law.value!r} (only 'mass_action' is supported)",
+                f"unknown rate law {law.value!r} (expected one of: "
+                f"{', '.join(sorted(KNOWN_RATE_LAWS))})",
                 law.line,
                 law.col,
             )
         self.expect("(")
-        rate_param = self.expect("NAME")
+        args = [self.parse_rate_arg()]
+        while self.at(","):
+            self.advance()
+            args.append(self.parse_rate_arg())
         close = self.expect(")")
+        lo, hi = RATE_LAW_ARITY[law.value]
+        if not (lo <= len(args) <= hi):
+            want = str(lo) if lo == hi else f"{lo}-{hi}"
+            raise BSLError(
+                f"rate law {law.value!r} expects {want} argument(s), "
+                f"got {len(args)}",
+                law.line,
+                law.col,
+            )
         return Reaction(
             name=name.value,
             reactants=reactants,
             products=products,
             rate_law=law.value,
-            rate_param=rate_param.value,
+            rate_args=args,
             span=self._span(kw, close),
+        )
+
+    def parse_rate_arg(self) -> RateArg:
+        t = self.cur
+        if self.at("NUMBER"):
+            self.advance()
+            return RateArg(name=None, value=float(t.value), span=self._span(t, t))
+        if self.at("NAME"):
+            self.advance()
+            return RateArg(name=t.value, value=None, span=self._span(t, t))
+        self._err(
+            f"expected a parameter name or number in rate law, "
+            f"found {self._desc(t)}"
         )
 
     def parse_param(self) -> Param:

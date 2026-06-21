@@ -113,6 +113,41 @@ def cmd_lean(args) -> int:
     return 0
 
 
+_STATUS_MARK = {
+    "discharged": "[OK]",
+    "failed": "[XX]",
+    "skipped": "[--]",
+    "unchecked": "[??]",
+}
+
+
+def cmd_verify(args) -> int:
+    model, diags = _load(args.file)
+    _print_diags(diags, model.source.name)
+    if has_errors(diags) and not args.force:
+        print("verify aborted: model has errors (use --force to override)",
+              file=sys.stderr)
+        return 1
+
+    from .verify import run_verification
+    out_dir = Path(args.out) if args.out else Path("out") / model.name / "verify"
+    journal, lean_file = run_verification(model, out_dir, lean_path=args.lean)
+
+    print(f"verify {model.name}: {journal['result'].upper()}"
+          + (f"  ({journal['lean_version']})" if journal.get("lean_version") else ""))
+    for o in journal["obligations"]:
+        mark = _STATUS_MARK.get(o["status"], "[??]")
+        print(f"  {mark} {o['name']}: {o['claim']}")
+    print(f"  lean file : {lean_file}")
+    print(f"  journal   : {out_dir / (model.name + '.journal.json')}")
+    if journal["result"] == "unchecked":
+        print(f"  note: {journal['note']}", file=sys.stderr)
+    if journal["result"] == "failed":
+        print(f"  lean output:\n{journal.get('lean_output', '')}", file=sys.stderr)
+
+    return 1 if journal["result"] == "failed" else 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="bsl", description="BSL toolchain")
     sub = p.add_subparsers(dest="command", required=True)
@@ -140,6 +175,14 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--force", action="store_true",
                     help="emit even if the model has errors")
     sp.set_defaults(func=cmd_lean)
+
+    sp = sub.add_parser("verify", help="discharge conservation obligations with Lean")
+    sp.add_argument("file")
+    sp.add_argument("--out", help="output directory (default: out/<model>/verify)")
+    sp.add_argument("--lean", help="path to the lean binary (else $BSL_LEAN / PATH)")
+    sp.add_argument("--force", action="store_true",
+                    help="verify even if the model has errors")
+    sp.set_defaults(func=cmd_verify)
 
     return p
 
