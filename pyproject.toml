@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gsk-leanbio"
+version = "0.1.0"
+description = "BSL: a formal-methods front-end for biochemical models, shaped to dock into the AXM provenance ecosystem."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "Apache-2.0" }
+keywords = ["formal-methods", "systems-biology", "lean4", "provenance", "axm"]
+dependencies = []  # standalone core has zero runtime dependencies
+
+[project.optional-dependencies]
+# The growth surface: install to seal candidates into signed AXM Genesis shards.
+axm = ["axm-core", "axm-genesis"]
+dev = ["pytest>=7"]
+
+[project.scripts]
+bsl = "bsl.cli:main"
+
+# AXM spoke registration. When installed alongside axm-core, the BSL CLI is
+# discoverable as `axm bsl ...`. Requires the [axm] extra and a click wrapper
+# (added with that extra); the standalone `bsl` script needs neither.
+[project.entry-points."axm.spokes"]
+bsl = "bsl.cli:main"
+
+[tool.setuptools]
+packages = ["bsl", "bsl.emit", "bsl.lean"]
