@@ -101,6 +101,28 @@ def check(model: Model) -> list[Diagnostic]:
                     f"{ref.species!r}", ref.span,
                 ))
 
+    # --- steady-state flux properties ---------------------------------------
+    reaction_names = {r.name for r in model.reactions}
+    for prop in model.properties:
+        if prop.reaction not in reaction_names:
+            diags.append(Diagnostic(
+                "error", "E_UNDECLARED_REACTION",
+                f"property {prop.name!r} references undeclared reaction "
+                f"{prop.reaction!r}", prop.span,
+            ))
+        if prop.lo > prop.hi:
+            diags.append(Diagnostic(
+                "error", "E_BAD_INTERVAL",
+                f"property {prop.name!r} has empty interval "
+                f"[{prop.lo}, {prop.hi}]", prop.span,
+            ))
+        if not model.steady_state:
+            diags.append(Diagnostic(
+                "error", "E_PROPERTY_NEEDS_STEADY_STATE",
+                f"property {prop.name!r} bounds a flux but the model has no "
+                f"`steady_state` declaration", prop.span,
+            ))
+
     # --- unused parameters (warning) ----------------------------------------
     used: set[str] = set()
     for r in model.reactions:

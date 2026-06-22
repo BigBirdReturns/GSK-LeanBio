@@ -137,6 +137,18 @@ class Invariant:
 
 
 @dataclass
+class FluxProperty:
+    """A declared steady-state bound on a reaction's flux, e.g.
+    `property p : flux(efflux) in [10, 20]`."""
+
+    name: str
+    reaction: str
+    lo: float
+    hi: float
+    span: Span
+
+
+@dataclass
 class Model:
     name: str
     species: list[Species]
@@ -145,6 +157,8 @@ class Model:
     invariants: list[Invariant]
     span: Span
     source: Source
+    steady_state: bool = False
+    properties: list[FluxProperty] = field(default_factory=list)
 
     def species_names(self) -> set[str]:
         return {s.name for s in self.species}

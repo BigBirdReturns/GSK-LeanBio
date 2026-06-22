@@ -18,7 +18,7 @@ network, `c . N != 0` for some reaction, the goal is false, and `omega` fails.
 from __future__ import annotations
 
 from .emit import _net
-from ..nodes import Model, Invariant
+from ..nodes import Model, Invariant, FluxProperty
 
 
 def _is_int(x: float) -> bool:
@@ -110,9 +110,63 @@ def obligation(model: Model, inv: Invariant) -> dict:
     }
 
 
+def _steady_state_obligation(model: Model, prop: FluxProperty) -> dict:
+    """Bound a reaction flux from steady-state flux balance + interval influx.
+
+    At steady state the net flux of each species is zero (`S v = 0`). A
+    zeroth-order influx reaction's flux equals its rate constant, so its
+    parameter interval bounds that flux. Both are linear in the opaque integer
+    fluxes, so the target bound closes by `omega`. A wrong bound is refuted.
+    """
+    claim = (f"flux({prop.reaction}) in "
+             f"[{_int_or_float(prop.lo)}, {_int_or_float(prop.hi)}] at steady state")
+    ints_ok = (
+        _is_int(prop.lo) and _is_int(prop.hi)
+        and all(_is_int(_net(r, s.name))
+                for r in model.reactions for s in model.species)
+    )
+    if not ints_ok:
+        return {
+            "name": prop.name, "claim": claim, "integer_ok": False,
+            "lean": f"-- {prop.name}: skipped (non-integer coefficients)",
+        }
+
+    species_eqs: list[tuple[str, str]] = []
+    for s in model.species:
+        expr = _dexpr(model, s.name, model.reactions)
+        if expr != "0":
+            species_eqs.append((f"hs_{s.name}", expr))
+
+    pmap = {p.name: p for p in model.params}
+    influx: list[tuple[str, str]] = []
+    for r in model.reactions:
+        if (r.rate_law == "mass_action" and len(r.reactants) == 0
+                and r.rate_args and r.rate_args[0].name in pmap):
+            p = pmap[r.rate_args[0].name]
+            if _is_int(p.lo) and _is_int(p.hi):
+                influx.append((f"hin_lo_{r.name}", f"{int(p.lo)} ≤ v_{r.name}"))
+                influx.append((f"hin_hi_{r.name}", f"v_{r.name} ≤ {int(p.hi)}"))
+
+    flux_vars = " ".join(f"v_{r.name}" for r in model.reactions)
+    hyps = "".join(f"\n    ({hn} : {expr} = 0)" for hn, expr in species_eqs)
+    hyps += "".join(f"\n    ({hn} : {ln})" for hn, ln in influx)
+    goal = (f"{int(prop.lo)} ≤ v_{prop.reaction} ∧ "
+            f"v_{prop.reaction} ≤ {int(prop.hi)}")
+    body = (
+        f"theorem {prop.name} ({flux_vars} : Int){hyps} :\n"
+        f"    {goal} := by\n"
+        f"  omega"
+    )
+    return {"name": prop.name, "claim": claim, "integer_ok": True, "lean": body}
+
+
 def emit_verification(model: Model) -> tuple[str, list[dict]]:
-    """Return (lean_source, obligations). One theorem per declared invariant."""
+    """Return (lean_source, obligations): one theorem per declared invariant
+    (conservation) and per steady-state flux property."""
     obligations = [obligation(model, inv) for inv in model.invariants]
+    if model.steady_state:
+        obligations += [_steady_state_obligation(model, p)
+                        for p in model.properties]
     L: list[str] = []
     L.append(f"/- Auto-generated conservation obligations for {model.name} "
              f"by GSK-LeanBio. -/")

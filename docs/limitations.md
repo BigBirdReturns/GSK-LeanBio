@@ -28,14 +28,24 @@ Works:
   Each invariant becomes a flux-abstract stoichiometric obligation closed by
   `omega` in Lean core — and a false invariant is *refuted* with a
   counterexample, not silently accepted.
+- **Parameter-bounded steady-state flux bounds** (`bsl verify` with a
+  `steady_state` declaration and `property p : flux(r) in [lo, hi]`). An
+  interval-bounded influx propagates through steady-state flux balance to a
+  certified interval on a downstream flux, closed by `omega`; a too-tight band
+  is refuted.
 
 Not yet:
 
-- **Running the ℝ-valued ODE proofs.** `bsl verify` discharges conservation over
-  the integers (the structural, kinetics-independent statement) using Lean core.
-  The richer `bsl lean` output — the real-valued vector field with existence /
-  uniqueness and the `ring`-closed conservation theorem — needs a Mathlib build
-  and is currently emit-only.
+- **Nonlinear, real-valued parameter bounds.** `bsl verify` proves conservation
+  and steady-state *flux* bounds over the integers with Lean core (`omega`). The
+  flagship "∀ k ∈ [a,b], steady-state *concentration* ∈ [c,d]" needs ℝ, division,
+  and nonlinear arithmetic — i.e. Mathlib. The `bsl lean` output already emits
+  the ℝ-valued vector field (with the `ring`-closed conservation theorem) but is
+  currently emit-only. Practical note: in the restricted build network used here,
+  Mathlib's prebuilt `.olean` cache was unreachable (HTTP 403 on every cache
+  object) and a from-source build is hours of compute, so the ℝ proofs run
+  wherever Mathlib is available (e.g. via the Dockerfile) but were not
+  kernel-checked in that sandbox.
 - **Sealing** candidates into a signed Genesis shard. The `GenesisEmitter`
   adapter is a stub that docks the AXM kernel when it is installed.
 - **PK/PD** compartment models and **Boolean** networks.

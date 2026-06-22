@@ -30,8 +30,9 @@ python -m bsl check   examples/A-enzyme-kinetics/model.bsl
 python -m bsl compile examples/A-enzyme-kinetics/model.bsl --out out/enzyme
 python -m bsl lean    examples/B-michaelis-menten/model.bsl
 
-# discharge the model's conservation laws with a real Lean kernel check
-python -m bsl verify  examples/C-hill/model.bsl
+# discharge real Lean kernel checks: conservation laws and steady-state flux bounds
+python -m bsl verify  examples/C-hill/model.bsl           # conservation
+python -m bsl verify  examples/D-linear-pathway/model.bsl  # parameter-bounded flux band
 ```
 
 `compile` writes a standalone evidence bundle (`candidates.jsonl` + source +
@@ -41,7 +42,8 @@ machine-checked proof, or a refutation with a counterexample if the declared
 invariant is not actually conserved.
 
 Worked examples: **A** mass-action enzyme kinetics, **B** Michaelis–Menten,
-**C** cooperative Hill binding. `verify` needs a Lean 4 toolchain (`lean` on
+**C** cooperative Hill binding, **D** open linear pathway (steady-state flux).
+`verify` needs a Lean 4 toolchain (`lean` on
 PATH, `$BSL_LEAN`, or `--lean`; or use the [Dockerfile](Dockerfile)); everything
 else is pure Python 3.10+.
 
@@ -73,8 +75,9 @@ AXM — it exposes a socket AXM clicks into.
 | Standalone `FileSink` bundle | working |
 | Lean 4 ODE-semantics emission (`bsl lean`) | working (emit only; needs Mathlib) |
 | **Conservation proofs discharged by Lean (`bsl verify`)** | **working — real `omega` kernel check** |
+| **Parameter-bounded steady-state flux bounds (`bsl verify`)** | **working — real `omega` kernel check** |
 | Genesis adapter (signed shards) | optional, stub — docks when AXM is installed |
-| Full ℝ ODE proofs (existence/uniqueness via Mathlib) | next |
+| Nonlinear ℝ steady-state / concentration bounds (Mathlib) | next — see [limitations](docs/limitations.md) |
 | PK/PD, Boolean networks, CTMC / stochastic | not yet |
 
 ## License

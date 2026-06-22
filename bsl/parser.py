@@ -27,6 +27,7 @@ from .nodes import (
     SpeciesRef,
     Param,
     Invariant,
+    FluxProperty,
     Source,
     RateArg,
     KNOWN_RATE_LAWS,
@@ -95,6 +96,8 @@ class _Parser:
         reactions: list[Reaction] = []
         params: list[Param] = []
         invariants: list[Invariant] = []
+        properties: list[FluxProperty] = []
+        steady_state = False
 
         while not self.at("}"):
             if self.at("EOF"):
@@ -107,10 +110,15 @@ class _Parser:
                 params.append(self.parse_param())
             elif self.at_kw("invariant"):
                 invariants.append(self.parse_invariant())
+            elif self.at_kw("steady_state"):
+                self.advance()
+                steady_state = True
+            elif self.at_kw("property"):
+                properties.append(self.parse_property())
             else:
                 self._err(
-                    f"expected species/reaction/param/invariant, "
-                    f"found {self._desc(self.cur)}"
+                    f"expected species/reaction/param/invariant/steady_state/"
+                    f"property, found {self._desc(self.cur)}"
                 )
 
         close = self.expect("}")
@@ -122,6 +130,8 @@ class _Parser:
             invariants=invariants,
             span=self._span(kw, close),
             source=self.src,
+            steady_state=steady_state,
+            properties=properties,
         )
 
     def parse_species(self) -> Species:
@@ -135,13 +145,16 @@ class _Parser:
             initial, end = self._number()
         return Species(name=name.value, initial=initial, span=self._span(kw, end))
 
-    def parse_side(self) -> tuple[list[SpeciesRef], Token]:
+    def parse_side(self, terminator: str) -> list[SpeciesRef]:
+        # An empty side (source `-> A` or sink `A ->`) is allowed: it ends
+        # immediately at the terminator token.
+        if self.at(terminator):
+            return []
         terms = [self.parse_term()]
         while self.at("+"):
             self.advance()
             terms.append(self.parse_term())
-        # the end token is the last species name token of the last term
-        return terms, self._last_term_tok
+        return terms
 
     def parse_term(self) -> SpeciesRef:
         coeff = 1.0
@@ -149,7 +162,6 @@ class _Parser:
         if self.at("NUMBER"):
             coeff = float(self.advance().value)
         name = self.expect("NAME")
-        self._last_term_tok = name
         return SpeciesRef(
             coeff=coeff, species=name.value, span=self._span(start, name)
         )
@@ -158,9 +170,9 @@ class _Parser:
         kw = self.expect_kw("reaction")
         name = self.expect("NAME")
         self.expect(":")
-        reactants, _ = self.parse_side()
+        reactants = self.parse_side("->")
         self.expect("->")
-        products, _ = self.parse_side()
+        products = self.parse_side("@")
         self.expect("@")
         law = self.expect("NAME")
         if law.value not in KNOWN_RATE_LAWS:
@@ -266,11 +278,30 @@ class _Parser:
         kw = self.expect_kw("invariant")
         name = self.expect("NAME")
         self.expect(":")
-        terms, _ = self.parse_side()
+        terms = self.parse_side("=")
         self.expect("=")
         rhs, end = self._number()
         return Invariant(
             name=name.value, terms=terms, rhs=rhs, span=self._span(kw, end)
+        )
+
+    def parse_property(self) -> FluxProperty:
+        kw = self.expect_kw("property")
+        name = self.expect("NAME")
+        self.expect(":")
+        self.expect_kw("flux")
+        self.expect("(")
+        rxn = self.expect("NAME")
+        self.expect(")")
+        self.expect_kw("in")
+        self.expect("[")
+        lo, _ = self._number()
+        self.expect(",")
+        hi, _ = self._number()
+        close = self.expect("]")
+        return FluxProperty(
+            name=name.value, reaction=rxn.value, lo=lo, hi=hi,
+            span=self._span(kw, close),
         )
 
 
