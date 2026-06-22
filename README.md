@@ -1,69 +1,80 @@
-# GSK-LeanBio — BSL
+# GSK-LeanBio
 
-**A formal-methods front-end for biochemical models.** Write a model in BSL
-(the Biological Specification Language), get back three things:
+**The smallest honest version of the claim "we built a Lean for biology."**
 
-1. a **type-checked** model (physical invariants enforced at compile time),
-2. a set of **evidence-bound claims** — every fact traced to exact bytes in your
-   `.bsl` source, confidence-graded by how you justified it, and
-3. **Lean 4** definitions of the model's semantics (ODE vector field +
-   conservation theorems), ready to prove.
+[![lean-flagship](https://github.com/BigBirdReturns/GSK-LeanBio/actions/workflows/lean.yml/badge.svg)](https://github.com/BigBirdReturns/GSK-LeanBio/actions/workflows/lean.yml)
 
-It runs locally with **zero dependencies** — just Python 3.10+. Nothing leaves
-your machine, nothing is fetched, no account.
+Kim Branson (Chief AI Officer, GSK) posted that GSK *"needed a 'Lean for
+biology' … it didn't exist so we built it. Details to come,"* and clarified that
+the methods can be shared — the data is the moat. Good. Then the method should be
+externally checkable, because that is the entire source of Lean's authority:
+**proof terms anyone can inspect, replay, and check outside the institution that
+produced them, with zero dependency on the author.**
 
-## What this is — and isn't
+A "Lean for biology" claim therefore carries a specific burden — a formal
+language, a proof checker, runnable examples, explicit assumptions, parameter
+bounds, evidence grades, proof artifacts, and **no dependency on GSK
+infrastructure**. This repo discharges that burden at minimum scale, built
+independently and in the open, to test whether the claim survives Lean's own
+standard.
 
-This proves **model consistency under explicitly stated, confidence-graded
-assumptions**. It does **not** claim biological ground truth. A green check means
-"given these axioms and parameter bounds, the conclusion follows" — not "nature
-agrees." See [`docs/limitations.md`](docs/limitations.md).
+**Open. Local. Model-relative. Assumption-bounded. Machine-checkable.**
 
-## Quick start
+See [`docs/THESIS.md`](docs/THESIS.md) for the full argument.
+
+## What it proves — and the ceiling it exposes
+
+It works: a biochemical model compiles to a kernel-checked theorem. The flagship,
+checked by the Lean kernel in CI ([`lean/BslLean/ReversibleTwoSpecies.lean`](lean/BslLean/ReversibleTwoSpecies.lean)):
+
+> For all rate constants `k1 ∈ [1,2]`, `k2 ∈ [3,4]`, any mass-conserving steady
+> state of the reversible network `A ⇌ B` (total 10) has `A ∈ [6,8]` and
+> `B ∈ [2,4]`.
+
+And it exposes the ceiling, which is the actual finding: **formal certainty
+attaches to the model statement, not to biological truth.** Biology's axioms are
+provisional, its parameters uncertain, its evidence graded. Lean does not erase
+that — it makes the boundary explicit. The honest "Lean for biology" is
+model-relative proof under stated assumptions, and nothing more.
+See [`docs/limitations.md`](docs/limitations.md).
+
+## Verify it yourself
+
+No GSK infrastructure, no account, nothing fetched beyond Lean + Mathlib.
 
 ```bash
-git clone https://github.com/BigBirdReturns/gsk-leanbio
-cd gsk-leanbio
+git clone https://github.com/BigBirdReturns/GSK-LeanBio
+cd GSK-LeanBio
 
-# parse / typecheck / emit candidates / emit Lean — all zero-dependency
+# zero-dependency: parse / typecheck / emit evidence-bound claims / emit Lean
 python -m bsl check   examples/A-enzyme-kinetics/model.bsl
 python -m bsl compile examples/A-enzyme-kinetics/model.bsl --out out/enzyme
-python -m bsl lean    examples/B-michaelis-menten/model.bsl
 
-# discharge real Lean kernel checks: conservation laws and steady-state flux bounds
-python -m bsl verify  examples/C-hill/model.bsl           # conservation
-python -m bsl verify  examples/D-linear-pathway/model.bsl  # parameter-bounded flux band
+# real Lean kernel checks (needs a Lean 4 toolchain, or use the Dockerfile)
+python -m bsl verify  examples/D-linear-pathway/model.bsl   # parameter-bounded flux band
+python -m bsl certify examples/E-reversible/model.bsl --lean-out lean/BslLean/Generated
 ```
 
-`compile` writes a standalone evidence bundle (`candidates.jsonl` + source +
-manifest). `lean` emits the model's ODE semantics as Lean 4. `verify` generates
-core-only conservation obligations and runs **Lean** to discharge them — a real
-machine-checked proof, or a refutation with a counterexample if the declared
-invariant is not actually conserved.
+The ℝ-valued flagship is kernel-checked on every push by GitHub Actions
+(`lake exe cache get` → `lake build`, asserting the `.olean` is produced and the
+source is `sorry`-free). Click the badge; read the log. That is the standard:
+not "trust me," but "run it."
 
-Worked examples: **A** mass-action enzyme kinetics, **B** Michaelis–Menten,
-**C** cooperative Hill binding, **D** open linear pathway (steady-state flux).
-`verify` needs a Lean 4 toolchain (`lean` on
-PATH, `$BSL_LEAN`, or `--lean`; or use the [Dockerfile](Dockerfile)); everything
-else is pure Python 3.10+.
+## How it works
 
-## The AXM mating surface
-
-GSK-LeanBio stands on its own, but it is shaped to dock into the
-[AXM](https://github.com/BigBirdReturns) provenance ecosystem without being
-welded to it. The seam is exactly two interfaces:
-
-- **in:** `candidates.jsonl` — entities/claims/evidence + tier + confidence, the
-  format AXM's Forge already ingests.
-- **out:** a sealed, signed Genesis shard.
-
-The bio code carries **zero AXM-format logic**. It hands candidates to an
-[`Emitter`](bsl/emit/port.py) (a one-method port). The default
-[`FileSink`](bsl/emit/file_sink.py) writes a plain unsigned bundle — no
-dependency. The optional [`GenesisEmitter`](bsl/emit/genesis_adapter.py) docks
-the AXM kernel to produce a cryptographically sealed shard; that is the
-*growth/scale surface*, not a build-time requirement. The tool doesn't *become*
-AXM — it exposes a socket AXM clicks into.
+- **BSL** (Biological Specification Language): a tiny DSL for biochemical models
+  — mass-action, Michaelis–Menten, Hill kinetics; interval-bounded parameters;
+  conservation invariants. Parser + physical-invariant typechecker, pure Python.
+- **Evidence-bound claims**: every fact traces to exact bytes of the `.bsl`
+  source and is confidence-graded by how it was justified
+  (`DERIVED_FROM_EXPERIMENT` / `LITERATURE_CONSENSUS` / `ASSUMED_FOR_MODELING`).
+- **`bsl verify`**: emits core-only obligations (conservation, steady-state flux
+  bounds) and runs Lean's `omega` to discharge — or *refute, with a
+  counterexample* — them. No Mathlib required.
+- **`bsl certify`**: recognizes the one verified network class and instantiates
+  the ℝ-valued steady-state schema as a Lean theorem; **fails closed** (precise
+  reason, no Lean emitted) on anything outside the certified subset.
+- **`lean/`**: the Mathlib-backed flagship, kernel-checked in CI.
 
 ## Status
 
@@ -71,14 +82,26 @@ AXM — it exposes a socket AXM clicks into.
 |---|---|
 | BSL parser — mass-action, Michaelis–Menten, Hill kinetics | working |
 | Typechecker — non-negative conc/rates, mass-balance refs, intervals, kinetics arity | working |
-| Candidate emission (evidence-bound, confidence-graded) | working |
-| Standalone `FileSink` bundle | working |
-| Lean 4 ODE-semantics emission (`bsl lean`) | working (emit only; needs Mathlib) |
-| **Conservation proofs discharged by Lean (`bsl verify`)** | **working — real `omega` kernel check** |
-| **Parameter-bounded steady-state flux bounds (`bsl verify`)** | **working — real `omega` kernel check** |
-| Genesis adapter (signed shards) | optional, stub — docks when AXM is installed |
-| **Flagship: ∀-parameter-interval steady-state concentration bound (ℝ, Mathlib)** | **written + CI kernel-check** (`lean/`, GitHub Actions); not buildable in the restricted sandbox |
-| PK/PD, Boolean networks, CTMC / stochastic | not yet |
+| Evidence-bound, confidence-graded claims | working |
+| Conservation + steady-state flux proofs (`bsl verify`, Lean `omega`) | working — real kernel check |
+| Certified-subset recognizer + schema instantiation (`bsl certify`, fail-closed) | working |
+| **Flagship: ∀-parameter-interval steady-state bound (ℝ, Mathlib)** | **kernel-checked in CI** |
+| PK/PD, Boolean networks, CTMC / stochastic, SBML import | not built — see [THESIS](docs/THESIS.md) |
+
+## Provenance
+
+Built rapidly and in the open with AI assistance; the commit history shows
+co-authorship. That is consistent with the point, not against it: if the honest
+version of "Lean for biology" is a few days' work for one person, the method was
+never the hard part or the moat — which is what the claim's author said too.
+
+## Not affiliated with GSK
+
+Independent work. **Not affiliated with, endorsed by, or derived from GSK** or
+any GSK product or internal tool. "GSK," "Lean," and the referenced post are
+named for identification and for commentary on a public statement. The critique
+is of the public *claim* and its verification burden — conditional on whether the
+framework ships — not of any individual.
 
 ## License
 
