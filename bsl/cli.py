@@ -148,6 +148,36 @@ def cmd_verify(args) -> int:
     return 1 if journal["result"] == "failed" else 0
 
 
+def cmd_certify(args) -> int:
+    model, diags = _load(args.file)
+    _print_diags(diags, model.source.name)
+    if has_errors(diags) and not args.force:
+        print("certify aborted: model has errors (use --force to override)",
+              file=sys.stderr)
+        return 1
+
+    from .certify import classify, certified_bounds, emit_lean_instance, Unsupported
+    try:
+        p = classify(model)
+    except Unsupported as e:
+        print(f"not in certified subset — {e}", file=sys.stderr)
+        return 3  # fail closed: precise reason, no Lean emitted
+
+    a_lo, a_hi, b_lo, b_hi = certified_bounds(p)
+    print(f"certified: reversible two-species  {p.sp_a} ⇌ {p.sp_b}")
+    print(f"  {p.sp_a}* ∈ [{a_lo}, {a_hi}],  {p.sp_b}* ∈ [{b_lo}, {b_hi}]  "
+          f"(for kf∈[{p.kf_lo},{p.kf_hi}], kr∈[{p.kr_lo},{p.kr_hi}], M={p.M})")
+    lean = emit_lean_instance(model, p)
+    if args.lean_out:
+        out = Path(args.lean_out) / f"{model.name}.lean"
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(lean, encoding="utf-8")
+        print(f"  -> {out}  (kernel-checked in CI)")
+    else:
+        print(lean)
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="bsl", description="BSL toolchain")
     sub = p.add_subparsers(dest="command", required=True)
@@ -183,6 +213,15 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--force", action="store_true",
                     help="verify even if the model has errors")
     sp.set_defaults(func=cmd_verify)
+
+    sp = sub.add_parser("certify",
+                        help="instantiate the verified steady-state schema (fail-closed)")
+    sp.add_argument("file")
+    sp.add_argument("--lean-out", dest="lean_out",
+                    help="directory to write the generated Lean instance")
+    sp.add_argument("--force", action="store_true",
+                    help="certify even if the model has errors")
+    sp.set_defaults(func=cmd_certify)
 
     return p
 
