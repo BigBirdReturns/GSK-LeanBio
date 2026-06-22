@@ -8,3 +8,5 @@ out/
 build/
 dist/
 .DS_Store
+lean/.lake/
+lean/lake-manifest.json

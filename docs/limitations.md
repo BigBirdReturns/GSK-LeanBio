@@ -36,16 +36,22 @@ Works:
 
 Not yet:
 
-- **Nonlinear, real-valued parameter bounds.** `bsl verify` proves conservation
-  and steady-state *flux* bounds over the integers with Lean core (`omega`). The
-  flagship "∀ k ∈ [a,b], steady-state *concentration* ∈ [c,d]" needs ℝ, division,
-  and nonlinear arithmetic — i.e. Mathlib. The `bsl lean` output already emits
-  the ℝ-valued vector field (with the `ring`-closed conservation theorem) but is
-  currently emit-only. Practical note: in the restricted build network used here,
-  Mathlib's prebuilt `.olean` cache was unreachable (HTTP 403 on every cache
-  object) and a from-source build is hours of compute, so the ℝ proofs run
-  wherever Mathlib is available (e.g. via the Dockerfile) but were not
-  kernel-checked in that sandbox.
+- **Nonlinear, real-valued parameter bounds — written, CI-checked, not sandbox-checked.**
+  `bsl verify` proves conservation and steady-state *flux* bounds over the
+  integers with Lean core (`omega`). The flagship "∀ k ∈ [a,b], steady-state
+  *concentration* ∈ [c,d]" needs ℝ, division, and nonlinear arithmetic — i.e.
+  Mathlib. That proof now exists, for the reversible two-species network `A ⇌ B`,
+  in [`lean/BslLean/ReversibleTwoSpecies.lean`](../lean/BslLean/ReversibleTwoSpecies.lean):
+
+  > For every `k1 ∈ [1,2]`, `k2 ∈ [3,4]`, any mass-conserving steady state of
+  > `A ⇌ B` (total 10) has `A ∈ [6,8]` and `B ∈ [2,4]`.
+
+  It is kernel-checked in CI (`.github/workflows/lean.yml`: `lake exe cache get`
+  → `lake build`), because GitHub-hosted runners can reach Mathlib's prebuilt
+  `.olean` cache. In the restricted dev sandbox that cache is firewalled (HTTP
+  403 on every object) and a from-source build is hours of compute, so this proof
+  is **not** kernel-checked there — the CI run is the authority. The `bsl lean`
+  output (the ℝ-valued vector field) remains emit-only.
 - **Sealing** candidates into a signed Genesis shard. The `GenesisEmitter`
   adapter is a stub that docks the AXM kernel when it is installed.
 - **PK/PD** compartment models and **Boolean** networks.

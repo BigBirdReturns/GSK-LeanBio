@@ -77,7 +77,7 @@ AXM — it exposes a socket AXM clicks into.
 | **Conservation proofs discharged by Lean (`bsl verify`)** | **working — real `omega` kernel check** |
 | **Parameter-bounded steady-state flux bounds (`bsl verify`)** | **working — real `omega` kernel check** |
 | Genesis adapter (signed shards) | optional, stub — docks when AXM is installed |
-| Nonlinear ℝ steady-state / concentration bounds (Mathlib) | next — see [limitations](docs/limitations.md) |
+| **Flagship: ∀-parameter-interval steady-state concentration bound (ℝ, Mathlib)** | **written + CI kernel-check** (`lean/`, GitHub Actions); not buildable in the restricted sandbox |
 | PK/PD, Boolean networks, CTMC / stochastic | not yet |
 
 ## License
