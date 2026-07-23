@@ -1,7 +1,7 @@
 <!-- tier-orientation-card v1 — generated; safe to regenerate -->
 # GSK-LeanBio
 
-Canonical checkout: `D:\Projects\Science\GSK-LeanBio\main`
+Canonical checkout: `D:\Projects\Ancestors\GSK-LeanBio\main`
 
 ## Purpose
 **The smallest honest version of the claim "we built a Lean for biology."**
