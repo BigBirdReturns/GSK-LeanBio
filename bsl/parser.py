@@ -313,4 +313,7 @@ def parse(text: str, name: str = "<string>") -> Model:
 
 def parse_file(path: str | Path) -> Model:
     path = Path(path)
-    return parse(path.read_text(encoding="utf-8"), name=path.name)
+    # Decode the bytes directly instead of using text-mode I/O.  Text-mode
+    # reads normalize newlines on Windows, which would make source hashes and
+    # byte spans describe different bytes than the submitted artifact.
+    return parse(path.read_bytes().decode("utf-8"), name=path.name)

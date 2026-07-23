@@ -40,7 +40,10 @@ class FileSink:
         out = Path(out_dir)
         (out / "content").mkdir(parents=True, exist_ok=True)
 
-        (out / "content" / "source.bsl").write_text(source.text, encoding="utf-8")
+        # SourceDoc.text is already the canonical text used to derive the
+        # recorded SHA-256.  Write its UTF-8 bytes directly so Windows newline
+        # translation cannot change the evidence artifact after hashing.
+        (out / "content" / "source.bsl").write_bytes(source.text.encode("utf-8"))
 
         with (out / "candidates.jsonl").open("w", encoding="utf-8") as f:
             for rec in candidates:
