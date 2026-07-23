@@ -21,7 +21,7 @@ Canonical checkout: `D:\Projects\Science\GSK-LeanBio\main`
 
 ## Staleness
 - generated_at: 2026-07-23
-- source_commit: d0c731f
+- source_commit: bdad804
 - regenerate: `python D:/Projects/Tooling/Estate/main/cards.py GSK-LeanBio --write`
 
 This card is GENERATED. If it disagrees with the repository, the repository is right. Do not hand-edit this card — regenerate it: python D:/Projects/Tooling/Estate/main/cards.py GSK-LeanBio --write
